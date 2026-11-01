@@ -11,10 +11,7 @@ import QtQuick.Layouts
 ShellRoot {
     id: root
     readonly property string home: Quickshell.env("HOME")
-    readonly property bool soundOn: Config.sound
-    readonly property int sideW: Config.side_width
-    readonly property int bottomH: Config.bottom_height
-    readonly property bool hasGpu: st.gpu_mt > 1
+    readonly property bool soundOn: true
     property string lastBatS: ""
     property bool lowWarned: false
     function play(name) {
@@ -53,16 +50,14 @@ ShellRoot {
         ["SHIFT","Z","X","C","V","B","N","M",",",".","/","SHIFT"],
         ["CTRL","FN","SPACE","ALT GR","CTRL"]
     ]
-    readonly property var dirs: Config.folders
+    readonly property var dirs: ["Documents","Downloads","Pictures","Music","Videos",".config","Desktop","Projects"]
 
     SystemClock { id: clock; precision: SystemClock.Seconds }
     SystemClock { id: dayClock; precision: SystemClock.Hours }
 
     Process {
-        id: statsProc
-        command: ["python3", Quickshell.shellPath("scripts/stats.py")]
+        command: ["python3", root.home + "/.config/quickshell/edex/stats.py"]
         running: true
-        onExited: statsRestart.start()
         stdout: SplitParser {
             onRead: data => {
                 try {
@@ -76,24 +71,20 @@ ShellRoot {
             }
         }
     }
-    Timer { id: statsRestart; interval: 3000; onTriggered: statsProc.running = true }
     Process {
-        id: keysProc
-        command: ["python3", Quickshell.shellPath("scripts/keys.py")]
+        command: ["python3", root.home + "/.config/eww/scripts/keys.py"]
         running: true
-        onExited: keysRestart.start()
         stdout: SplitParser { onRead: data => { try { root.pressed = JSON.parse(data) } catch (e) {} } }
     }
-    Timer { id: keysRestart; interval: 3000; onTriggered: keysProc.running = true }
     Process {
         id: planeProc
-        command: ["bash", Quickshell.shellPath("scripts/plane.sh")]
+        command: [root.home + "/.config/eww/scripts/plane.sh"]
         stdout: StdioCollector { onStreamFinished: { try { root.plane = JSON.parse(text) } catch (e) {} } }
     }
     Timer { interval: 20000; running: true; repeat: true; triggeredOnStart: true; onTriggered: planeProc.running = true }
     Process {
         id: issProc
-        command: ["python3", Quickshell.shellPath("scripts/iss.py")]
+        command: [root.home + "/.config/eww/scripts/iss.py"]
         stdout: StdioCollector { onStreamFinished: { try { root.iss = JSON.parse(text) } catch (e) {} } }
     }
     Timer { interval: 10000; running: true; repeat: true; triggeredOnStart: true; onTriggered: issProc.running = true }
@@ -113,12 +104,13 @@ ShellRoot {
         }
     }
 
+    // ---------------- LEFT ----------------
     PanelWindow {
         id: leftWin
         property bool searching: false
         anchors { top: true; bottom: true; left: true }
-        implicitWidth: root.sideW
-        exclusiveZone: root.sideW
+        implicitWidth: 250
+        exclusiveZone: 250
         color: Theme.bg
         WlrLayershell.layer: WlrLayer.Bottom
         WlrLayershell.namespace: "edex-left"
@@ -141,30 +133,20 @@ ShellRoot {
                 KV { k: "HOST"; v: root.st.host }
             }
             Sep {}
-            Head { t: "CPU USAGE"; v: Math.round(root.st.cpu) + "%" + (root.st.cpu_t > 0 ? "  " + root.st.cpu_t + "°C" : "") }
+            Head { t: "CPU USAGE"; v: Math.round(root.st.cpu) + "%  " + root.st.cpu_t + "°C" }
             Graph { samples: root.cpuH; maxv: 100; Layout.preferredHeight: 60 }
             Sep {}
             Head { t: "MEMORY"; v: (root.st.memu / 1073741824).toFixed(1) + " / " + (root.st.memt / 1073741824).toFixed(1) + " GiB" }
             Bar { frac: root.st.memu / root.st.memt }
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 8
-                visible: root.st.bat >= 0
-                Sep {}
-                Head { t: "BATTERY"; v: root.st.bat + "%  " + root.st.bat_s }
-                Bar { frac: Math.max(root.st.bat, 0) / 100 }
-            }
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 8
-                visible: root.hasGpu
-                Sep {}
-                Head { t: "GPU"; v: root.st.gpu_u + "%  " + root.st.gpu_t + "°C" }
-                Graph { samples: root.gpuH; maxv: 100 }
-                Bar { frac: root.st.gpu_mperc / 100 }
-                KV { k: "VRAM"; v: root.st.gpu_mu + " / " + root.st.gpu_mt + " MiB" }
-                KV { k: "POWER"; v: root.st.gpu_p + " W" }
-            }
+            Sep {}
+            Head { t: "BATTERY"; v: root.st.bat < 0 ? "N/A" : root.st.bat + "%  " + root.st.bat_s }
+            Bar { frac: Math.max(root.st.bat, 0) / 100 }
+            Sep {}
+            Head { t: "GPU"; v: root.st.gpu_u + "%  " + root.st.gpu_t + "°C" }
+            Graph { samples: root.gpuH; maxv: 100 }
+            Bar { frac: root.st.gpu_mperc / 100 }
+            KV { k: "VRAM"; v: root.st.gpu_mu + " / " + root.st.gpu_mt + " MiB" }
+            KV { k: "POWER"; v: root.st.gpu_p + " W" }
             Sep {}
             Head { t: "TOP PROCESSES" }
             Text {
@@ -192,7 +174,7 @@ ShellRoot {
                     onTextChanged: root.query = text
                     onActiveFocusChanged: if (!activeFocus) leftWin.searching = false
                     Keys.onReturnPressed: {
-                        if (appModel.values.length > 0) { root.play("complete"); appModel.values[0].execute() }
+                        if (appModel.values.length > 0) { appModel.values[0].execute() }
                         text = ""; leftWin.searching = false; focus = false
                     }
                     Keys.onEscapePressed: { text = ""; leftWin.searching = false; focus = false }
@@ -232,19 +214,20 @@ ShellRoot {
                     MouseArea {
                         id: rma
                         anchors.fill: parent
-                        hoverEnabled: true
-                        onClicked: { root.play("complete"); row.modelData.execute() }
+		        hoverEnabled: true
+			onClicked: row.modelData.execute()
                     }
                 }
             }
         }
     }
 
+    // ---------------- RIGHT ----------------
     PanelWindow {
         id: rightWin
         anchors { top: true; bottom: true; right: true }
-        implicitWidth: root.sideW
-        exclusiveZone: root.sideW
+        implicitWidth: 250
+        exclusiveZone: 250
         color: Theme.bg
         WlrLayershell.layer: WlrLayer.Bottom
         WlrLayershell.namespace: "edex-right"
@@ -265,7 +248,7 @@ ShellRoot {
             }
             DayOfWeekRow {
                 Layout.fillWidth: true
-                locale: Qt.locale()
+                locale: Qt.locale("en_US")
                 delegate: Text {
                     horizontalAlignment: Text.AlignHCenter
                     text: model.shortName
@@ -280,7 +263,7 @@ ShellRoot {
                 Layout.preferredHeight: 110
                 month: dayClock.date.getMonth()
                 year: dayClock.date.getFullYear()
-                locale: Qt.locale()
+                locale: Qt.locale("en_US")
                 delegate: Item {
                     Rectangle {
                         anchors { fill: parent; margins: 1 }
@@ -325,7 +308,7 @@ ShellRoot {
                 }
             }
             Sep {}
-            Head { t: "NEAREST TO " + Config.location.name.toUpperCase(); v: root.plane.when }
+            Head { t: "NEAREST TO CAIRO"; v: root.plane.when }
             Text { text: root.plane.call; color: Theme.fg; font { family: Theme.mono; pixelSize: 16; letterSpacing: 1 } }
             ColumnLayout {
                 Layout.fillWidth: true
@@ -335,7 +318,7 @@ ShellRoot {
                 KV { k: "ALT"; v: root.plane.alt }
                 KV { k: "SPEED"; v: root.plane.spd }
                 KV { k: "HEADING"; v: root.plane.hdg }
-                KV { k: "DISTANCE"; v: root.plane.dist }
+                KV { k: "FROM CAIRO"; v: root.plane.dist }
                 KV { k: "BEARING"; v: root.plane.brg }
             }
             Sep {}
@@ -361,10 +344,11 @@ ShellRoot {
         }
     }
 
+    // ---------------- BOTTOM ----------------
     PanelWindow {
         anchors { bottom: true; left: true; right: true }
-        implicitHeight: root.bottomH
-        exclusiveZone: root.bottomH
+        implicitHeight: 250
+        exclusiveZone: 250
         color: Theme.bg
         WlrLayershell.layer: WlrLayer.Bottom
         WlrLayershell.namespace: "edex-bottom"
@@ -420,7 +404,7 @@ ShellRoot {
                                 id: ma
                                 anchors.fill: parent
                                 hoverEnabled: true
-                                onClicked: { root.play("message-new-instant"); Quickshell.execDetached([...Config.terminal, ...Config.file_manager, root.home + "/" + tile.modelData]) }
+                                onClicked: { root.play("message-new-instant"); Quickshell.execDetached(["kitty", "-e", "yazi", root.home + "/" + tile.modelData]) }
                             }
                         }
                     }
@@ -452,9 +436,9 @@ ShellRoot {
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
                                 Layout.preferredWidth: 1
-                                color: on ? Theme.fg : Theme.keyOff
+                                color: on ? Theme.fg : Qt.rgba(0.667, 0.812, 0.82, 0)
                                 Behavior on color { ColorAnimation { duration: 150 } }
-                                border { width: 1; color: on ? Theme.fg : Theme.keyLine }
+                                border { width: 1; color: on ? Theme.fg : Qt.rgba(0.667, 0.812, 0.82, 0.2) }
                                 Text {
                                     anchors.centerIn: parent
                                     text: key.modelData
