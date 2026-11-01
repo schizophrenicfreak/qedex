@@ -1,0 +1,11 @@
+{
+  "font": "Fira Code",
+  "sound": true,
+  "side_width": 250,
+  "bottom_height": 250,
+  "location": { "name": "GREENWICH", "lat": 51.4779, "lon": -0.0015 },
+  "plane_radius_nm": 250,
+  "terminal": ["kitty", "-e"],
+  "file_manager": ["yazi"],
+  "folders": ["Documents", "Downloads", "Pictures", "Music", "Videos", ".config", "Desktop", "Projects"]
+}
