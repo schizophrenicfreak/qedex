@@ -308,7 +308,7 @@ ShellRoot {
                 }
             }
             Sep {}
-            Head { t: "NEAREST TO CAIRO"; v: root.plane.when }
+            Head { t: "NEAREST PLANE FROM HOME"; v: root.plane.when }
             Text { text: root.plane.call; color: Theme.fg; font { family: Theme.mono; pixelSize: 16; letterSpacing: 1 } }
             ColumnLayout {
                 Layout.fillWidth: true
@@ -318,7 +318,7 @@ ShellRoot {
                 KV { k: "ALT"; v: root.plane.alt }
                 KV { k: "SPEED"; v: root.plane.spd }
                 KV { k: "HEADING"; v: root.plane.hdg }
-                KV { k: "FROM CAIRO"; v: root.plane.dist }
+                KV { k: "DISTANCE"; v: root.plane.dist }
                 KV { k: "BEARING"; v: root.plane.brg }
             }
             Sep {}
